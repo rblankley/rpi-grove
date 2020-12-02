@@ -7,12 +7,12 @@ import sys
 
 # =================================================================================================
 class Grove_RGB_LCD_Size( Enum ):
-    """! Dexter Industries Grove-LCD RGB Backlight Device Dot Sizes """
+    """! Seeed Studio Grove-LCD RGB Backlight Device Dot Sizes """
     SIZE_5x10_DOTS, SIZE_5x8_DOTS = range( 0, 2 )
 
 # =================================================================================================
-class Grove_RGB_LCD():
-    """! Dexter Industries Grove-LCD RGB Backlight Device (lcd JHD1313M3) """
+class Grove_RGB_LCD:
+    """! Seeed Studio Grove-LCD RGB Backlight Device (lcd JHD1313M3) """
 
     # this device has two I2C addresses
     LCD_I2C_ADDRESS = 0x3e
@@ -62,15 +62,17 @@ class Grove_RGB_LCD():
     LCD_4BITMODE = 0x00
     LCD_2LINE = 0x08
     LCD_1LINE = 0x00
-    LCD_5x10DOTS = 0x04
-    LCD_5x8DOTS = 0x00
+
+    LCD_DOTS = {
+        Grove_RGB_LCD_Size.SIZE_5x10_DOTS: 0x04,
+        Grove_RGB_LCD_Size.SIZE_5x8_DOTS: 0x00,
+    }
 
     # ---------------------------------------------------------------------------------------------
-    def __init__( self, cols=16, lines=2, dotsize=Grove_RGB_LCD_Size.SIZE_5x8_DOTS ):
+    def __init__( self, cols=16, rows=2, dotsize=Grove_RGB_LCD_Size.SIZE_5x8_DOTS ):
         """! Initialize Class
-        @param self  this object
         @param cols  number of columns
-        @param lines  number of lines
+        @param rows  number of rows (lines)
         @param dotsize  lcd dot size
         """
 
@@ -89,20 +91,20 @@ class Grove_RGB_LCD():
             else:
                 self.__bus = smbus.SMBus( 0 )
 
-        self.__numcols = cols
-        self.__numlines = lines
+        self.numcols = cols
+        self.numrows = rows
 
         # setup
-        if ( 1 < lines ):
+        if ( 1 < rows ):
             self.__function = self.LCD_2LINE
         else:
             self.__function = self.LCD_1LINE
 
         # for some 1 line displays you can select a 10 pixel high font
-        if (( dotsize == Grove_RGB_LCD_Size.SIZE_5x10_DOTS ) and ( lines == 1 )):
-            self.__function |= self.LCD_5x10DOTS
+        if ( rows == 1 ):
+            self.__function |= self.LCD_DOTS[dotsize]
         else:
-            self.__function |= self.LCD_5x8DOTS
+            self.__function |= self.LCD_DOTS[Grove_RGB_LCD_Size.SIZE_5x8_DOTS]
 
         # send function set command sequence
         self.__command( self.LCD_FUNCTIONSET | self.__function )
@@ -115,7 +117,7 @@ class Grove_RGB_LCD():
         # third go
         self.__command( self.LCD_FUNCTIONSET | self.__function )
 
-        # finally, set num lines, font size, etc.
+        # finally, set lines, font size, etc.
         self.__command( self.LCD_FUNCTIONSET | self.__function )
 
         # turn the display on with no cursor or blinking default
@@ -147,7 +149,6 @@ class Grove_RGB_LCD():
     # ---------------------------------------------------------------------------------------------
     def __setReg( self, addr, d ):
         """! Set Register Data
-        @param self  this object
         @param addr  address
         @param d  data
         """
@@ -156,7 +157,6 @@ class Grove_RGB_LCD():
     # ---------------------------------------------------------------------------------------------
     def setBlink( self, enabled ):
         """! Control the backlight LED blinking
-        @param self  this object
         @param enabled  @c True to enable, @c False otherwise
         """
         if ( enabled ):
@@ -172,7 +172,6 @@ class Grove_RGB_LCD():
     def setColor( self, r, g, b ):
         """! Set Backlight Color
         Set backlight to (R,G,B) (values from 0..255 for each)
-        @param self  this object
         @param r  red [0..255]
         @param g  green [0..255]
         @param b  blue [0..255]
@@ -184,7 +183,6 @@ class Grove_RGB_LCD():
     # ---------------------------------------------------------------------------------------------
     def __command( self, cmd ):
         """! Send command
-        @param self  this object
         @param cmd  command
         """
         self.__bus.write_byte_data( self.LCD_I2C_ADDRESS, 0x80, cmd )
@@ -192,7 +190,6 @@ class Grove_RGB_LCD():
     # ---------------------------------------------------------------------------------------------
     def setAutoScroll( self, enabled ):
         """! Setup auto scrolling
-        @param self  this object
         @param enabled  @c True to 'right justify' text from the cursor, @c False to 'left justify' text from the cursor
         """
         if ( enabled ):
@@ -205,7 +202,6 @@ class Grove_RGB_LCD():
     # ---------------------------------------------------------------------------------------------
     def setCursorBlink( self, enabled ):
         """! Turn on and off the blinking cursor
-        @param self  this object
         @param enabled  @c True to enable, @c False otherwise
         """
         if ( enabled ):
@@ -218,7 +214,6 @@ class Grove_RGB_LCD():
     # ---------------------------------------------------------------------------------------------
     def setCursor( self, enabled ):
         """! Turns the underline cursor on/off
-        @param self  this object
         @param enabled  @c True to enable, @c False otherwise
         """
         if ( enabled ):
@@ -231,7 +226,6 @@ class Grove_RGB_LCD():
     # ---------------------------------------------------------------------------------------------
     def setCursorPos( self, col, row ):
         """! Set cursor position
-        @param self  this object
         @param col  cursor column
         @param row  cursor row
         """
@@ -245,7 +239,6 @@ class Grove_RGB_LCD():
     # ---------------------------------------------------------------------------------------------
     def setDisplayEnabled( self, enabled ):
         """! Turn the display on/off (quickly)
-        @param self  this object
         @param enabled  @c True to enable display, @c False otherwise
         """
         if ( enabled ):
@@ -258,7 +251,6 @@ class Grove_RGB_LCD():
     # ---------------------------------------------------------------------------------------------
     def setLeftToRight( self, enabled ):
         """! This is for text that flows Left to Right
-        @param self  this object
         @param enabled  @c True to enable, @c False otherwise
         """
         if ( enabled ):
@@ -270,38 +262,29 @@ class Grove_RGB_LCD():
 
     # ---------------------------------------------------------------------------------------------
     def clear( self ):
-        """! Clear display, set cursor position to zero
-        @param self  this object
-        """
+        """! Clear display, set cursor position to zero """
         self.__command( self.LCD_CLEARDISPLAY )
         time.sleep( 0.002 );                        # this command takes a long time!
 
     # ---------------------------------------------------------------------------------------------
     def home( self ):
-        """! Set cursor position to zero
-        @param self  this object
-        """
+        """! Set cursor position to zero """
         self.__command( self.LCD_RETURNHOME )
         time.sleep( 0.002 );                        # this command takes a long time!
 
     # ---------------------------------------------------------------------------------------------
     def scrollDisplayLeft( self ):
-        """! Scroll the display without changing the RAM
-        @param self  this object
-        """
+        """! Scroll the display without changing the RAM """
         self.__command( self.LCD_CURSORSHIFT | self.LCD_DISPLAYMOVE | self.LCD_MOVELEFT )
 
     # ---------------------------------------------------------------------------------------------
     def scrollDisplayRight( self ):
-        """! Scroll the display without changing the RAM
-        @param self  this object
-        """
+        """! Scroll the display without changing the RAM """
         self.__command( self.LCD_CURSORSHIFT | self.LCD_DISPLAYMOVE | self.LCD_MOVERIGHT )
  
     # ---------------------------------------------------------------------------------------------
     def createChar( self, location, charmap ):
         """! Allows us to fill the first 8 CGRAM locations with custom characters
-        @param self  this object
         @param location  location [0-7]
         @param charmap  
         """
@@ -314,7 +297,6 @@ class Grove_RGB_LCD():
     # ---------------------------------------------------------------------------------------------
     def printText( self, text, wrap=False ):
         """! Print text (at current location)
-        @param self  this object
         @param text  text to display
         @param wrap  @c True to wrap on 16th character or '\n', @c False otherwise
         """
@@ -326,10 +308,10 @@ class Grove_RGB_LCD():
 
         for c in text:
             if ( wrap ):
-                if (( c == '\n' ) or ( self.__numcols <= count )):
+                if (( c == '\n' ) or ( self.numcols <= count )):
                     count = 0
                     row += 1
-                    if ( self.__numlines <= row ):
+                    if ( self.numrows <= row ):
                         break
                     self.setCursorPos( count, row )
                     if ( c == '\n' ):
