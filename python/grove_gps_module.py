@@ -1,4 +1,8 @@
 #!/usr/bin/env python
+#
+# Released under the MIT license (http://choosealicense.com/licenses/mit/).
+# For more information see https://github.com/rblankley/rpi-grove/blob/master/LICENSE
+#
 
 from threading import Lock, Thread
 
@@ -14,45 +18,75 @@ class Grove_GPS_Serial( Thread ):
     DEBUG = False
     POLL_TIME = 0.05
 
-    GPGGA=["$GPGGA",
-        "[0-9]{6}\.[0-9]{3}",                       # timestamp hhmmss.sss
-        "[0-9]+\.[0-9]{2,}",                        # latitude of position ddmm.mmmmm
-        "[NS]{1}",                                  # North or South
-        "[0-9]+\.[0-9]{2,}",                        # longitude of position ddmm.mmmmm
-        "[EW]{1}",                                  # East or West
-        "[0123]",                                   # GPS Position Indicator; 0 Fix not available or invalid, 1 GPS SPS Mode, fix valid, 2 Differential GPS, SPS Mode, fix valid, 3 GPS PPS Mode, fix valid 
-        "[0-9]{1,2}",                               # Number of satellites
-        "[0-9]+\.[0-9]*",                           # horizontal dilution of precision x.x
-        "[0-9]+\.[0-9]*",                           # altitude x.x (meters)
-        "\w",                                       # altitude units
-        "-?[0-9]+\.[0-9]*",                         # geoids separation x.x (meters)
-        "\w",                                       # geoids separation units
+    GPGGA = ["$GPGGA",
+        "[0-9]{6}\.[0-9]{3}",                       # UTC Position (timestamp) hhmmss.sss
+        "[0-9]+\.[0-9]{2,}",                        # Latitude of position ddmm.mmmmm
+        "[NS]{1}",                                  # North or South Indicator
+        "[0-9]+\.[0-9]{2,}",                        # Longitude of position ddmm.mmmmm
+        "[EW]{1}",                                  # East or West Indicator
+        "[0123]",                                   # GPS Position Indicator; 0=Fix not available or invalid, 1=GPS SPS Mode, fix valid, 2=Differential GPS, SPS Mode, fix valid, 3=GPS PPS Mode, fix valid 
+        "[0-9]{1,2}",                               # Number of Satellites Used
+        "[0-9]+\.[0-9]*",                           # Horizontal Dilution of Precision x.x
+        "[0-9]+\.[0-9]*",                           # MSL Altitude x.x (meters)
+        "\w",                                       # MSL Altitude units
+        "-?[0-9]+\.[0-9]*",                         # Geoids Separation x.x (meters)
+        "\w",                                       # Geoids Separation units
         ]
 
-    GPRMC=["$GPRMC",
-        "[0-9]{6}\.[0-9]{3}",                       # uts timestamp hhmmss.sss
-        "[AV]{1}",                                  # status; A data valid, V data not valid
-        "[0-9]+\.[0-9]{2,}",                        # latitude of position ddmm.mmmmm
-        "[NS]{1}",                                  # North or South
-        "[0-9]+\.[0-9]{2,}",                        # longitude of position ddmm.mmmmm
-        "[EW]{1}",                                  # East or West
-        "[0-9]+\.[0-9]*",                           # speed over ground (knots)
-        "[0-9]+\.[0-9]*",                           # measured heading true (degrees)
-        "[0-9]{6}",                                 # date ddmmyy
+    GPGSA = ["$GPGSA",
+        "[MA]{1}",                                  # Mode 1; M=Manual-forced to operate in 2D or 3D mode, A=Automatic-allowed to automatically switch 2D/3D
+        "[123]{1}",                                 # Mode 2; 1=Fix not available, 2=3D, 3=3D
+        "[0-9]*",                                   # Satellite Used on Channel 1
+        "[0-9]*",                                   # Satellite Used on Channel 2
+        "[0-9]*",                                   # Satellite Used on Channel 3
+        "[0-9]*",                                   # Satellite Used on Channel 4
+        "[0-9]*",                                   # Satellite Used on Channel 5
+        "[0-9]*",                                   # Satellite Used on Channel 6
+        "[0-9]*",                                   # Satellite Used on Channel 7
+        "[0-9]*",                                   # Satellite Used on Channel 8
+        "[0-9]*",                                   # Satellite Used on Channel 9
+        "[0-9]*",                                   # Satellite Used on Channel 10
+        "[0-9]*",                                   # Satellite Used on Channel 11
+        "[0-9]*",                                   # Satellite Used on Channel 12
+        "[0-9]+\.[0-9]*",                           # Position Dilution of Precision x.x
+        "[0-9]+\.[0-9]*",                           # Horizontal Dilution of Precision x.x
+        "[0-9]+\.[0-9]*",                           # Vertical Dilution of Precision x.x
         ]
 
-    GPVTG=["$GPVTG",
-        "[0-9]+\.[0-9]*",                           # measured heading true (degrees)
+    GPGSV = ["$GPGSV",
+        "[123]{1}",                                 # Number of Messages
+        "[123]{1}",                                 # Messages Number
+        "[0-9]{1,2}",                               # Number of Satellites Used
+        "[0-9]{1,2}",                               # Channel 1 Satellite ID (1-32)
+        "[0-9]{1,2}",                               # Channel 1 Satellite Elevation (degrees, max 90)
+        "[0-9]{1,3}",                               # Channel 1 Satellite Azinmuth (degrees true, 0-359)
+        "[0-9]*",                                   # Channel 1 SNR(C/NO) dBHz (0-99, null when not tracking)
+        ]
+
+    GPRMC = ["$GPRMC",
+        "[0-9]{6}\.[0-9]{3}",                       # UTS Position (timestamp) hhmmss.sss
+        "[AV]{1}",                                  # Status; A=data valid, V=data not valid
+        "[0-9]+\.[0-9]{2,}",                        # Latitude of position ddmm.mmmmm
+        "[NS]{1}",                                  # North or South Indicator
+        "[0-9]+\.[0-9]{2,}",                        # Longitude of position ddmm.mmmmm
+        "[EW]{1}",                                  # East or West Indicator
+        "[0-9]+\.[0-9]*",                           # Speed Over Ground (knots)
+        "[0-9]+\.[0-9]*",                           # Course Over Ground Heading (degrees true)
+        "[0-9]{6}",                                 # Date ddmmyy
+        ]
+
+    GPVTG = ["$GPVTG",
+        "[0-9]+\.[0-9]*",                           # Measured Heading (degrees true)
         "[T]{1}",                                   # True
-        "[0-9]+\.[0-9]*",                           # measured heading magnetic (degrees)
+        "[0-9]+\.[0-9]*",                           # Measured Heading magnetic (degrees magnetic)
         "[M]{1}",                                   # Magnetic
-        "[0-9]+\.[0-9]*",                           # measured horizontal speed (knots)
+        "[0-9]+\.[0-9]*",                           # Measured Horizontal Speed (knots)
         "[N]{1}",                                   # Knots
-        "[0-9]+\.[0-9]*",                           # measured heading magnetic (kilometers)
+        "[0-9]+\.[0-9]*",                           # Measured Horizontal Speed (kilometers)
         "[K]{1}",                                   # Kilometers / hr
         ]
 
-    KNOTS_TO_KM_PER_HR = 1.852
+    KNOTS_TO_KM_HR = 1.852
 
     # ---------------------------------------------------------------------------------------------
     def __init__( self, port, baud, timeout ):
@@ -76,6 +110,20 @@ class Grove_GPS_Serial( Thread ):
         for p in self.GPGGA:
             self.__gga.append( re.compile( p ) ) # compile regex once to use later
 
+        # GSA GNSS DOP and Active Satellites
+        self.__gsa = [] # contains compiled regex
+
+        for p in self.GPGSA:
+            self.__gsa.append( re.compile( p ) ) # compile regex once to use later
+
+        # GSV GNSS Satellites in View
+        self.__gsv = [] # contains compiled regex
+
+        for p in self.GPGSV:
+            self.__gsv.append( re.compile( p ) ) # compile regex once to use later
+
+        self.__gsv_lines = []
+
         # RMC Recommended Minimum Specific GNSS Data
         self.__rmc = [] # contains compiled regex
 
@@ -94,9 +142,15 @@ class Grove_GPS_Serial( Thread ):
         self.__longitude = 0.0
         self.__pos = 0
         self.__satellites = 0
-        self.__hdop = 0.0
         self.__altitude = 0.0
         self.__geoids = 0.0
+
+        self.__satellitesUsed = []
+        self.__pdop = 0.0
+        self.__hdop = 0.0
+        self.__vdop = 0.0
+
+        self.__satellitesUsedInfo = {}              # tuple of (elevation, azinmuth, SNR(C/NO)) by satellite id
 
         self.__heading = 0.0
         self.__velocity = 0.0
@@ -112,6 +166,29 @@ class Grove_GPS_Serial( Thread ):
             print( s )
 
     # ---------------------------------------------------------------------------------------------
+    def __split( self, ident, line ):
+        """! Split lines on separator
+        @param ident  identifier
+        @param line  line to split
+        @return  array of lines
+        """
+
+        # sometimes multiple GPS data packets come into the stream... take the data only after the last ident is seen
+        i = line.rindex( ident )
+        line = line[i:]
+
+        lines = line.split( "," )
+
+        # look for checksum and strip
+        checksum = lines[-1]
+
+        if ( "*" in checksum ):
+            i = checksum.index( "*" )
+            lines[-1] = checksum[:i]
+
+        return lines
+
+    # ---------------------------------------------------------------------------------------------
     def __validate_expression( self, ident, line, exp ):
         """! Runs regex validation on a line
         @param ident  identifier
@@ -122,13 +199,7 @@ class Grove_GPS_Serial( Thread ):
         if ( not line.startswith( ident ) ):
             return False
 
-        '''
-        # sometimes multiple GPS data packets come into the stream... take the data only after the last ident is seen
-        i = line.rindex( ident )
-        line = line[i:]
-        '''
-
-        lines = line.split( "," )
+        lines = self.__split( ident, line )
         self.__debug( lines )
 
         if ( len(lines) < len(exp) ):
@@ -144,6 +215,36 @@ class Grove_GPS_Serial( Thread ):
                 self.__debug( "Passed %d" % i )
 
         return True
+
+    # ---------------------------------------------------------------------------------------------
+    def __process_gsv( self ):
+        """! Process GSV line data """
+        self.__satellitesUsedInfo = {}
+
+        # process each line
+        for line in self.__gsv_lines:
+            lines = self.__split( self.GPGSV[0], line )
+
+            # retrieve satellite info
+            # message may contain up to 4 satellites
+            for i in (4, 8, 12, 16):
+                if ( i < len(lines) ):
+                    sat_id = int( lines[i] )
+
+                    if ( 0 < sat_id ):
+                        values = []
+
+                        # unused satellites may not contain elevation, azinmuth, snr
+                        for j in range( 1, 4 ):
+                            if ( len( lines[i+j] ) ):
+                                values.append( int( lines[i+j] ) )
+                            else:
+                                values.append( None )
+
+                        # (elevation, azinmuth, snr)
+                        self.__satellitesUsedInfo[sat_id] = (values[0], values[1], values[2])
+
+        self.__satellites = len( self.__satellitesUsedInfo )
 
     # ---------------------------------------------------------------------------------------------
     def stop( self ):
@@ -192,12 +293,7 @@ class Grove_GPS_Serial( Thread ):
 
                                 # gga
                                 if ( self.__validate_expression( self.GPGGA[0], line, self.__gga ) ):
-                                    '''
-                                    # sometimes multiple GPS data packets come into the stream... take the data only after the last ident is seen
-                                    i = line.rindex( ident )
-                                    line = line[i:]
-                                    '''
-                                    lines = line.split( "," )
+                                    lines = self.__split( self.GPGGA[0], line )
 
                                     self.__timestamp = float( lines[1] )
 
@@ -221,40 +317,65 @@ class Grove_GPS_Serial( Thread ):
                                     self.__altitude = float( lines[9] )
                                     self.__geoids = float( lines[11] )
 
+                                # gsa
+                                elif ( self.__validate_expression( self.GPGSA[0], line, self.__gsa ) ):
+                                    lines = self.__split( self.GPGSA[0], line )
+
+                                    if ( '1' == lines[2] ):
+                                        self.__debug( "Fix not available" )
+
+                                    else:
+                                        self.__satellitesUsed = []
+
+                                        for s in lines[3:15]:
+                                            if ( len(s ) ):
+                                                self.__satellitesUsed.append( int( s ) )
+
+                                        self.__pdop = float( lines[15] )
+                                        self.__hdop = float( lines[16] )
+                                        self.__vdop = float( lines[17] )
+
+                                # gsv
+                                elif ( self.__validate_expression( self.GPGSV[0], line, self.__gsv ) ):
+                                    lines = self.__split( self.GPGSV[0], line )
+
+                                    num_gsv = int( lines[1] )
+                                    gsv_index = int( lines[2] ) - 1
+
+                                    # save off all lines
+                                    # process them all once we have all of them
+                                    if ( 0 == gsv_index ):
+                                        self.__gsv_lines = []
+
+                                    self.__gsv_lines.append( line )
+
+                                    # we have all lines
+                                    if ( num_gsv == len( self.__gsv_lines ) ):
+                                        self.__process_gsv()
+
                                 # rmc
                                 elif ( self.__validate_expression( self.GPRMC[0], line, self.__rmc ) ):
-                                    '''
-                                    # sometimes multiple GPS data packets come into the stream... take the data only after the last ident is seen
-                                    i = line.rindex( ident )
-                                    line = line[i:]
-                                    '''
-                                    lines = line.split( "," )
+                                    lines = self.__split( self.GPRMC[0], line )
 
                                     if ( 'A' != lines[2] ):
                                         self.__debug( "RMC data not valid" )
 
                                     else:
-                                        self.__velocity = float( lines[7] ) * self.KNOTS_TO_KM_PER_HR
+                                        self.__velocity = float( lines[7] ) * self.KNOTS_TO_KM_HR
                                         self.__heading = float( lines[8] )
                                         self.__date = float( lines[9] )
 
                                 # vtg
                                 elif ( self.__validate_expression( self.GPVTG[0], line, self.__vtg ) ):
-                                    '''
-                                    # sometimes multiple GPS data packets come into the stream... take the data only after the last ident is seen
-                                    i = line.rindex( ident )
-                                    line = line[i:]
-                                    '''
-                                    lines = line.split( "," )
+                                    lines = self.__split( self.GPVTG[0], line )
 
                                     self.__heading = float( lines[1] )
-                                    self.__velocity = float( lines[5] ) * self.KNOTS_TO_KM_PER_HR
+                                    self.__velocity = float( lines[5] ) * self.KNOTS_TO_KM_HR
 
             finally:
                 self.__lock.release()
 
             time.sleep( self.POLL_TIME )
-
 
     # ---------------------------------------------------------------------------------------------
     def utc( self ):
@@ -317,6 +438,17 @@ class Grove_GPS_Serial( Thread ):
         return result
 
     # ---------------------------------------------------------------------------------------------
+    def pdop( self ):
+        """! Retrieve position dilution of precision
+        @return  pdop
+        """
+        self.__lock.acquire()
+        result = self.__pdop
+        self.__lock.release()
+
+        return result
+
+    # ---------------------------------------------------------------------------------------------
     def hdop( self ):
         """! Retrieve horizontal dilution of precision
         @return  hdop
@@ -328,12 +460,45 @@ class Grove_GPS_Serial( Thread ):
         return result
 
     # ---------------------------------------------------------------------------------------------
+    def vdop( self ):
+        """! Retrieve vertical dilution of precision
+        @return  hdop
+        """
+        self.__lock.acquire()
+        result = self.__vdop
+        self.__lock.release()
+
+        return result
+
+    # ---------------------------------------------------------------------------------------------
     def satellitesInView( self ):
         """! Retrieve number of satellites in view
         @return  number of satellites in view
         """
         self.__lock.acquire()
         result = self.__satellites
+        self.__lock.release()
+
+        return result
+
+    # ---------------------------------------------------------------------------------------------
+    def satellitesUsed( self ):
+        """! Retrieve satellites used
+        @return  satellites used
+        """
+        self.__lock.acquire()
+        result = self.__satellitesUsed
+        self.__lock.release()
+
+        return result
+
+    # ---------------------------------------------------------------------------------------------
+    def satellitesUsedInfo( self ):
+        """! Retrieve satellites used information
+        @return  dictionary of (elevation, azinmuth, snr) by satellites used id
+        """
+        self.__lock.acquire()
+        result = self.__satellitesUsedInfo
         self.__lock.release()
 
         return result
@@ -415,6 +580,13 @@ class Grove_GPS( object ):
         return self.__ser.altitude()
 
     # ---------------------------------------------------------------------------------------------
+    def pdop( self ):
+        """! Retrieve position dilution of precision
+        @return  pdop
+        """
+        return self.__ser.pdop()
+
+    # ---------------------------------------------------------------------------------------------
     def hdop( self ):
         """! Retrieve horizontal dilution of precision
         @return  hdop
@@ -422,11 +594,32 @@ class Grove_GPS( object ):
         return self.__ser.hdop()
 
     # ---------------------------------------------------------------------------------------------
+    def vdop( self ):
+        """! Retrieve vertical dilution of precision
+        @return  vdop
+        """
+        return self.__ser.vdop()
+
+    # ---------------------------------------------------------------------------------------------
     def satellitesInView( self ):
         """! Retrieve number of satellites in view
         @return  number of satellites in view
         """
         return self.__ser.satellitesInView()
+
+    # ---------------------------------------------------------------------------------------------
+    def satellitesUsed( self ):
+        """! Retrieve satellites used
+        @return  satellites used
+        """
+        return self.__ser.satellitesUsed()
+
+    # ---------------------------------------------------------------------------------------------
+    def satellitesUsedInfo( self ):
+        """! Retrieve satellites used information
+        @return  dictionary of (elevation, azinmuth, snr) by satellites used id
+        """
+        return self.__ser.satellitesUsedInfo()
 
     # ---------------------------------------------------------------------------------------------
     def heading( self ):

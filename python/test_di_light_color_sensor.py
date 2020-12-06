@@ -1,4 +1,8 @@
 #!/usr/bin/env python
+#
+# Released under the MIT license (http://choosealicense.com/licenses/mit/).
+# For more information see https://github.com/rblankley/rpi-grove/blob/master/LICENSE
+#
 
 from di_light_color_sensor import DexterInd_Light_Color_Sensor, DexterInd_Light_Color_Sensor_Gain
 

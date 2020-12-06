@@ -1,4 +1,8 @@
 #!/usr/bin/env python
+#
+# Released under the MIT license (http://choosealicense.com/licenses/mit/).
+# For more information see https://github.com/rblankley/rpi-grove/blob/master/LICENSE
+#
 
 from grove_gps_module import Grove_GPS
 
@@ -21,10 +25,15 @@ if __name__ =="__main__":
             (lat, lon) = gps.location()
             print( 'Latitude %.6f' % lat )
             print( 'Longitude %.6f' % lon )
-            
             print( 'Altitude', gps.altitude() )
+
+            print( 'PDOP', gps.pdop() )
             print( 'HDOP', gps.hdop() )
+            print( 'VDOP', gps.vdop() )
+
             print( 'Satellites in view', gps.satellitesInView() )
+            print( 'Satellites used', gps.satellitesUsed() )
+            print( 'Satellites information', gps.satellitesUsedInfo() )
 
             print( 'Velocity', gps.velocity() )
             print( 'True Heading', gps.heading() )
