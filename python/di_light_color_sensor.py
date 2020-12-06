@@ -5,9 +5,9 @@
 #
 
 from enum import Enum
+from i2c_device import I2C_Device
 
 import time
-import sys
 
 # =================================================================================================
 class DexterInd_Light_Color_Sensor_Gain( Enum ):
@@ -86,20 +86,8 @@ class DexterInd_Light_Color_Sensor( object ):
         @param gain  gain constant
         """
 
-        # retrieve bus
-        if ( sys.platform == 'uwp' ):
-            import winrt_smbus as smbus
-
-            self.__bus = smbus.SMBus( 1 )
-        else:
-            import smbus
-            import RPi.GPIO as GPIO
-
-            rev = GPIO.RPI_REVISION
-            if (( rev == 2 ) or ( rev == 3 )):
-                self.__bus = smbus.SMBus( 1 )
-            else:
-                self.__bus = smbus.SMBus( 0 )
+        # setup device
+        self.__dev = I2C_Device( self.I2C_ADDRESS )
 
         # make sure we are connected to the right sensor
         chip_id = self.__readReg( self.REG_ID )
@@ -122,7 +110,7 @@ class DexterInd_Light_Color_Sensor( object ):
         @param addr  address
         @return  data
         """
-        return self.__bus.read_byte_data( self.I2C_ADDRESS, (self.COMMAND_BIT | addr) )
+        return self.__dev.readReg( (self.COMMAND_BIT | addr) )
 
     # ---------------------------------------------------------------------------------------------
     def __writeReg( self, addr, d ):
@@ -130,7 +118,7 @@ class DexterInd_Light_Color_Sensor( object ):
         @param addr  address
         @param d  data
         """
-        self.__bus.write_byte_data( self.I2C_ADDRESS, (self.COMMAND_BIT | addr), d )
+        self.__dev.writeReg( (self.COMMAND_BIT | addr), d )
 
     # ---------------------------------------------------------------------------------------------
     def __readBlockData( self, addr, numbytes ):
@@ -138,7 +126,7 @@ class DexterInd_Light_Color_Sensor( object ):
         @param addr  address
         @param numbytes  number of bytes to read  
         """
-        return self.__bus.read_i2c_block_data( self.I2C_ADDRESS, (self.COMMAND_BIT | addr), numbytes )
+        return self.__dev.readBlockData( (self.COMMAND_BIT | addr), numbytes )
 
     # ---------------------------------------------------------------------------------------------
     def setEnabled( self, enabled ):

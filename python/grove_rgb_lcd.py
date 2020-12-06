@@ -5,9 +5,9 @@
 #
 
 from enum import Enum
+from i2c_device import I2C_Device
 
 import time
-import sys
 
 # =================================================================================================
 class Grove_RGB_LCD_Size( Enum ):
@@ -80,25 +80,14 @@ class Grove_RGB_LCD:
         @param dotsize  lcd dot size
         """
 
-        # retrieve bus
-        if ( sys.platform == 'uwp' ):
-            import winrt_smbus as smbus
+        # setup devices
+        self.__lcd_dev = I2C_Device( self.LCD_I2C_ADDRESS )
+        self.__rgb_dev = I2C_Device( self.RGB_I2C_ADDRESS )
 
-            self.__bus = smbus.SMBus( 1 )
-        else:
-            import smbus
-            import RPi.GPIO as GPIO
-
-            rev = GPIO.RPI_REVISION
-            if (( rev == 2 ) or ( rev == 3 )):
-                self.__bus = smbus.SMBus( 1 )
-            else:
-                self.__bus = smbus.SMBus( 0 )
-
+        # setup
         self.numcols = cols
         self.numrows = rows
 
-        # setup
         if ( 1 < rows ):
             self.__function = self.LCD_2LINE
         else:
@@ -156,7 +145,7 @@ class Grove_RGB_LCD:
         @param addr  address
         @param d  data
         """
-        self.__bus.write_byte_data( self.RGB_I2C_ADDRESS, addr, d )
+        self.__rgb_dev.writeReg( addr, d )
 
     # ---------------------------------------------------------------------------------------------
     def setBlink( self, enabled ):
@@ -189,7 +178,7 @@ class Grove_RGB_LCD:
         """! Send command
         @param cmd  command
         """
-        self.__bus.write_byte_data( self.LCD_I2C_ADDRESS, 0x80, cmd )
+        self.__lcd_dev.writeReg( 0x80, cmd )
 
     # ---------------------------------------------------------------------------------------------
     def setAutoScroll( self, enabled ):
@@ -296,7 +285,7 @@ class Grove_RGB_LCD:
             location &= 0x7                             # we only have 8 locations 0-7
             self.__command( self.LCD_SETCGRAMADDR | (location << 3) )
 
-            self.__bus.write_block_data( self.LCD_I2C_ADDRESS, 0x40, charmap )
+            self.__lcd_dev.writeBlockData( 0x40, charmap )
 
     # ---------------------------------------------------------------------------------------------
     def printText( self, text, wrap=False ):
@@ -323,7 +312,7 @@ class Grove_RGB_LCD:
                 count += 1
 
             if ( c <= 8 ):
-                self.__bus.write_byte_data( self.LCD_I2C_ADDRESS, 0x40, c )
+                self.__lcd_dev.writeReg( 0x40, c )
             else:
-                self.__bus.write_byte_data( self.LCD_I2C_ADDRESS, 0x40, ord(c) )
+                self.__lcd_dev.writeReg( 0x40, ord(c) )
 
