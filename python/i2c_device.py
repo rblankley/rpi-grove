@@ -39,6 +39,9 @@ class I2C_Device( object ):
         @param reg  register
         @return  data
         """
+        if ( reg is None ):
+            return self.__bus.read_byte( self.__address )
+
         return self.__bus.read_byte_data( self.__address, reg )
 
     # ---------------------------------------------------------------------------------------------
@@ -47,6 +50,10 @@ class I2C_Device( object ):
         @param reg  register
         @param d  data
         """
+        if ( reg is None ):
+            self.__bus.write_byte( self.__address, d )
+            return
+
         self.__bus.write_byte_data( self.__address, reg, d )
 
     # ---------------------------------------------------------------------------------------------
