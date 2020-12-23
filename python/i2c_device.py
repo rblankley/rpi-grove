@@ -20,17 +20,24 @@ class I2C_Device( object ):
         if ( sys.platform == 'uwp' ):
             import winrt_smbus as smbus
 
-            self.__bus = smbus.SMBus( 1 )
+            bus = 1
+
         else:
             import smbus
-            import RPi.GPIO as GPIO
 
-            rev = GPIO.RPI_REVISION
+            try:
+                import RPi.GPIO as GPIO
+                # use the bus that matches your raspi version
+                rev = GPIO.RPI_REVISION
+            except:
+                rev = 3
+
             if (( rev == 2 ) or ( rev == 3 )):
-                self.__bus = smbus.SMBus( 1 )
+                bus = 1  # for Pi 2+
             else:
-                self.__bus = smbus.SMBus( 0 )
+                bus = 0
 
+        self.__bus = smbus.SMBus( bus )
         self.__address = i2c_address
 
     # ---------------------------------------------------------------------------------------------
@@ -55,6 +62,22 @@ class I2C_Device( object ):
             return
 
         self.__bus.write_byte_data( self.__address, reg, d )
+
+    # ---------------------------------------------------------------------------------------------
+    def readWordData( self, reg ):
+        """! Read a single word (2-bytes)
+        @param reg  register
+        @return  data
+        """
+        return self.__bus.read_word_data( self.__address, reg )
+
+    # ---------------------------------------------------------------------------------------------
+    def writeWordData( self, reg, d ):
+        """! Write a single word (2-bytes)
+        @param reg  register
+        @param d  data
+        """
+        self.__bus.write_word_data( self.__address, reg, d )
 
     # ---------------------------------------------------------------------------------------------
     def readBlockData( self, reg, numbytes ):

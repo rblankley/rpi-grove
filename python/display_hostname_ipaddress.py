@@ -9,7 +9,7 @@ from grove_rgb_lcd import Grove_RGB_LCD
 import socket 
 import time
 
-HOST_ADDR = "8.8.8.8"
+HOST_ADDR = ("8.8.8.8", 80)
 
 # -------------------------------------------------------------------------------------------------
 def gethostinfo():
@@ -18,7 +18,7 @@ def gethostinfo():
 
         # ip address of internet facing adapter
         s = socket.socket( socket.AF_INET, socket.SOCK_DGRAM )
-        s.connect( (HOST_ADDR, 80) )
+        s.connect( HOST_ADDR )
         host_ip = s.getsockname()[0]
 
         return (host_name, host_ip)
@@ -27,7 +27,8 @@ def gethostinfo():
         raise KeyboardInterrupt
 
     except:
-        print( "Unable to get Hostname and IP" )
+        #print( "Unable to get Hostname and IP" )
+        pass
 
     return (None, None)
 
@@ -53,7 +54,6 @@ def main():
 
         # refresh display
         if ( refresh ):
-            print("refresh")
             d.clear()
 
             if (( hostname is None ) or ( ipaddr is None )):
