@@ -10,6 +10,8 @@ from i2c_device import I2C_Device
 from grove_ports import Grove_Analog_Port
 from grove_ports import Grove_Digital_Port
 
+__all__ = ['Grove_Base_Hat_Device_Type', 'Grove_Base_Hat_Analog_Read_Type', 'Grove_Base_Hat_Device']
+
 # =================================================================================================
 class Grove_Base_Hat_Device_Type( Enum ):
     """! Grove Base Hat Types """
