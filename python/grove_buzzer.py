@@ -10,11 +10,11 @@ from grove_ports import Grove_Digital_Port_Direction
 
 import time
 
-__all__ = ['Grove_LED']
+__all__ = ['Grove_Buzzer']
 
 # =================================================================================================
-class Grove_LED( Grove_Digital_Device ):
-    """! Grove LED (Digital) """
+class Grove_Buzzer( Grove_Digital_Device ):
+    """! Grove Buzzer (Digital) """
 
     # ---------------------------------------------------------------------------------------------
     def __init__( self, dev, port ):
@@ -22,16 +22,16 @@ class Grove_LED( Grove_Digital_Device ):
         @param dev  grove device
         @param port  grove analog port
         """
-        super( Grove_LED, self ).__init__( dev, port, Grove_Digital_Port_Direction.OUTPUT )
+        super( Grove_Buzzer, self ).__init__( dev, port, Grove_Digital_Port_Direction.OUTPUT )
 
     # ---------------------------------------------------------------------------------------------
     def on( self ):
-        """ Turn LED On """
+        """ Turn Buzzer On """
         self.write( True )
 
     # ---------------------------------------------------------------------------------------------
     def off( self ):
-        """ Turn LED Off """
+        """ Turn Buzzer Off """
         self.write( False )
 
 # =================================================================================================
@@ -51,18 +51,18 @@ def main():
     dev = Grove_Base_Hat_Device()
     port = Grove_Digital_Port.D16
 
-    led = Grove_LED( dev, port )
+    buzzer = Grove_Buzzer( dev, port )
 
     try:
 
         while True:
-            led.on()
+            buzzer.on()
             time.sleep( 1 )
-            led.off()
+            buzzer.off()
             time.sleep( 1 )
 
     finally:
-        led.off()
+        buzzer.off()
 
 # -------------------------------------------------------------------------------------------------
 if __name__ == '__main__':

@@ -10,11 +10,11 @@ from grove_ports import Grove_Digital_Port_Direction
 
 import time
 
-__all__ = ['Grove_LED']
+__all__ = ['Grove_Relay']
 
 # =================================================================================================
-class Grove_LED( Grove_Digital_Device ):
-    """! Grove LED (Digital) """
+class Grove_Relay( Grove_Digital_Device ):
+    """! Grove Relay (Digital) """
 
     # ---------------------------------------------------------------------------------------------
     def __init__( self, dev, port ):
@@ -22,16 +22,16 @@ class Grove_LED( Grove_Digital_Device ):
         @param dev  grove device
         @param port  grove analog port
         """
-        super( Grove_LED, self ).__init__( dev, port, Grove_Digital_Port_Direction.OUTPUT )
+        super( Grove_Relay, self ).__init__( dev, port, Grove_Digital_Port_Direction.OUTPUT )
 
     # ---------------------------------------------------------------------------------------------
     def on( self ):
-        """ Turn LED On """
+        """ Turn Relay On """
         self.write( True )
 
     # ---------------------------------------------------------------------------------------------
     def off( self ):
-        """ Turn LED Off """
+        """ Turn Relay Off """
         self.write( False )
 
 # =================================================================================================
@@ -51,18 +51,18 @@ def main():
     dev = Grove_Base_Hat_Device()
     port = Grove_Digital_Port.D16
 
-    led = Grove_LED( dev, port )
+    relay = Grove_Relay( dev, port )
 
     try:
 
         while True:
-            led.on()
-            time.sleep( 1 )
-            led.off()
-            time.sleep( 1 )
+            relay.on()
+            time.sleep( 5 )
+            relay.off()
+            time.sleep( 5 )
 
     finally:
-        led.off()
+        relay.off()
 
 # -------------------------------------------------------------------------------------------------
 if __name__ == '__main__':
