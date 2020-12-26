@@ -5,13 +5,16 @@
 # For more information see https://github.com/rblankley/rpi-grove/blob/master/LICENSE
 #
 
-from grove_analog_device import Grove_Analog_Device
+from grove_digital_device import Grove_Digital_Device
+from grove_ports import Grove_Digital_Port_Direction
 
-__all__ = ['Grove_Light_Sensor']
+import time
+
+__all__ = ['Grove_LED']
 
 # =================================================================================================
-class Grove_Light_Sensor( Grove_Analog_Device ):
-    """! Grove Light Sensor (Analog) """
+class Grove_LED( Grove_Digital_Device ):
+    """! Grove LED (Digital) """
 
     # ---------------------------------------------------------------------------------------------
     def __init__( self, dev, port ):
@@ -19,8 +22,17 @@ class Grove_Light_Sensor( Grove_Analog_Device ):
         @param dev  grove device
         @param port  grove analog port
         """
-        super( Grove_Light_Sensor, self ).__init__( dev, port )
+        super( Grove_LED, self ).__init__( dev, port, Grove_Digital_Port_Direction.OUTPUT )
 
+    # ---------------------------------------------------------------------------------------------
+    def on( self ):
+        """ Turn LED On """
+        self.write( True )
+
+    # ---------------------------------------------------------------------------------------------
+    def off( self ):
+        """ Turn LED Off """
+        self.write( False )
 
 # =================================================================================================
 #
@@ -31,19 +43,20 @@ class Grove_Light_Sensor( Grove_Analog_Device ):
 # -------------------------------------------------------------------------------------------------
 def main():
     from grove_base_hat_device import Grove_Base_Hat_Device
-    from grove_ports import Grove_Analog_Port
+    from grove_ports import Grove_Digital_Port
 
     import time
 
-    # assume port A0 on a Grove Base Hat
+    # assume port D16 on a Grove Base Hat
     dev = Grove_Base_Hat_Device()
-    port = Grove_Analog_Port.A0
+    port = Grove_Digital_Port.D16
 
-    sensor = Grove_Light_Sensor( dev, port )
+    led = Grove_LED( dev, port )
 
-    print( 'Detecting light...' )
     while True:
-        print( 'Light value: {0}'.format( sensor.read() ) )
+        led.on()
+        time.sleep( 1 )
+        led.off()
         time.sleep( 1 )
 
 # -------------------------------------------------------------------------------------------------

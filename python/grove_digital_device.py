@@ -5,24 +5,31 @@
 # For more information see https://github.com/rblankley/rpi-grove/blob/master/LICENSE
 #
 
-__all__ = ['Grove_Analog_Device']
+__all__ = ['Grove_Digital_Device']
 
 # =================================================================================================
-class Grove_Analog_Device( object ):
-    """! Abstract Grove Analog Device """
+class Grove_Digital_Device( object ):
+    """! Abstract Grove Digital Device """
 
     # ---------------------------------------------------------------------------------------------
-    def __init__( self, dev, port ):
-        """! Initialize I2C Device
+    def __init__( self, dev, port, direction ):
+        """! Initialize Device
         @param dev  grove device
-        @param port  grove analog port
+        @param port  grove digital port
+        @param direction  grove digital port direction
         """
-        self.__dev = dev
-        self.__port = port
+        self.__gpio = dev.gpio( port, direction )
 
     # ---------------------------------------------------------------------------------------------
     def read( self ):
         """! Read Device
         @return  value
         """
-        return self.__dev.analogRead( self.__port )
+        return self.__gpio.read()
+
+    # ---------------------------------------------------------------------------------------------
+    def write( self, value ):
+        """! Write Device
+        @param value  value to write
+        """
+        return self.__gpio.write( value )

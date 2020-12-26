@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 #
 # Released under the MIT license (http://choosealicense.com/licenses/mit/).
 # For more information see https://github.com/rblankley/rpi-grove/blob/master/LICENSE
@@ -7,8 +8,8 @@
 from enum import Enum
 from i2c_device import I2C_Device
 
-from grove_ports import Grove_Analog_Port
-from grove_ports import Grove_Digital_Port
+from grove_ports import Grove_Analog_Port, Grove_Digital_Port, Grove_Digital_Port_Direction
+from rpi_gpio_device import GPIO_Device
 
 __all__ = ['Grove_Base_Hat_Device_Type', 'Grove_Base_Hat_Analog_Read_Type', 'Grove_Base_Hat_Device']
 
@@ -51,6 +52,8 @@ class Grove_Base_Hat_Device( object ):
         Grove_Base_Hat_Analog_Read_Type.VOLTAGE: REG_VOLTAGE_BASE,
         Grove_Base_Hat_Analog_Read_Type.VALUE: REG_VALUE_BASE,
     }
+
+    DIGITAL_DEVICES = {}
 
     # ---------------------------------------------------------------------------------------------
     def __init__( self ):
@@ -99,6 +102,21 @@ class Grove_Base_Hat_Device( object ):
         return self.__dev.readWordData( reg )
 
     # ---------------------------------------------------------------------------------------------
+    def __digital_device( self, port, direction ):
+        """! Retrieve digital device for pin
+        @param port  grove digital port
+        @param direction  grove digital port direction
+        @return  device as (port, device)
+        """
+        pin = self.DIGITAL_PORTS[port]
+
+        # create device if not yet exist
+        if ( pin not in self.DIGITAL_DEVICES.keys() ):
+            self.DIGITAL_DEVICES[pin] = ( port, GPIO_Device( pin, direction ) )
+
+        return self.DIGITAL_DEVICES[pin]
+
+    # ---------------------------------------------------------------------------------------------
     @property
     def deviceType( self ):
         """! Retrieve device type
@@ -135,3 +153,31 @@ class Grove_Base_Hat_Device( object ):
         @return  value
         """
         return self.__read_register( self.ANALOG_READ_BASE[rt] + self.ANALOG_PORTS[port] )
+
+    # ---------------------------------------------------------------------------------------------
+    def digitalRead( self, port ):
+        """! Perform digital read
+        @param port  port to read
+        @return  value
+        """
+        dev = self.gpio( port, Grove_Digital_Port_Direction.INPUT )
+        return dev.read()
+
+    # ---------------------------------------------------------------------------------------------
+    def digitalWrite( self, port, value ):
+        """! Perform digital read
+        @param port  port to write
+        @param value  value to write
+        """
+        dev = self.gpio( port, Grove_Digital_Port_Direction.OUTPUT )
+        return dev.write( value )
+
+    # ---------------------------------------------------------------------------------------------
+    def gpio( self, port, direction ):
+        """! Retrieve gpio device for pin
+        @param port  grove digital port
+        @param direction  grove digital port direction
+        @return  device
+        """
+        (pin, dev) = self.__digital_device( port, direction )
+        return dev
