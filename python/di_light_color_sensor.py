@@ -9,6 +9,8 @@ from i2c_device import I2C_Device
 
 import time
 
+__all__ = ['DexterInd_Light_Color_Sensor_Gain', 'DexterInd_Light_Color_Sensor']
+
 # =================================================================================================
 class DexterInd_Light_Color_Sensor_Gain( Enum ):
     """! Dexter Industries Light Color Sensor Gain Values """
@@ -264,3 +266,41 @@ class DexterInd_Light_Color_Sensor( object ):
             b = 255
 
         return ( r, g, b )
+
+
+# =================================================================================================
+#
+# Test Cases
+#
+# =================================================================================================
+
+# -------------------------------------------------------------------------------------------------
+def readLoop( s ):
+    for i in range( 0, 10 ):
+        print( s.rgb() )
+        time.sleep( 2 )
+
+# -------------------------------------------------------------------------------------------------
+def main():
+    s = DexterInd_Light_Color_Sensor()
+
+    readLoop( s )
+
+    s.setLightEnabled( True )
+    readLoop( s )
+
+    s.setIntegrationTime( 4 * 0.0024 )
+    readLoop( s )
+
+    s.setGain( DexterInd_Light_Color_Sensor_Gain.GAIN_60X )
+    readLoop( s )
+
+    s.setLightEnabled( False )
+    readLoop( s )
+
+    s.setEnabled( False )
+    readLoop( s )
+
+# -------------------------------------------------------------------------------------------------
+if __name__ == "__main__":
+    main()
