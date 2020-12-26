@@ -4,19 +4,19 @@
 # For more information see https://github.com/rblankley/rpi-grove/blob/master/LICENSE
 #
 
-from threading import Lock, Thread
+from serial_device import Serial_Device
+from threading import Lock
 
 import re
-import serial
-import sys
 import time
 
+__all__ = ['Grove_GPS']
+
 # =================================================================================================
-class Grove_GPS_Serial( Thread ):
-    """! Thread object that manages serial communication """
+class Grove_GPS( object ):
+    """! Seeed Studio Grove-GPS Module (SIM28) """
 
     DEBUG = False
-    POLL_TIME = 0.05
 
     GPGGA = ["$GPGGA",
         "[0-9]{6}\.[0-9]{3}",                       # UTC Position (timestamp) hhmmss.sss
@@ -54,8 +54,8 @@ class Grove_GPS_Serial( Thread ):
         ]
 
     GPGSV = ["$GPGSV",
-        "[123]{1}",                                 # Number of Messages
-        "[123]{1}",                                 # Messages Number
+        "[1-9]{1}",                                 # Number of Messages
+        "[1-9]{1}",                                 # Messages Number
         "[0-9]{1,2}",                               # Number of Satellites Used
         "[0-9]{1,2}",                               # Channel 1 Satellite ID (1-32)
         "[0-9]{1,2}",                               # Channel 1 Satellite Elevation (degrees, max 90)
@@ -89,20 +89,12 @@ class Grove_GPS_Serial( Thread ):
     KNOTS_TO_KM_HR = 1.852
 
     # ---------------------------------------------------------------------------------------------
-    def __init__( self, port, baud, timeout ):
+    def __init__( self, port = '/dev/ttyAMA0', baud = 9600, timeout = 0 ):
         """! Initialize Class
         @param port  serial device
         @param baud  baud rate
         @param timeout  timeout
         """
-        super( Grove_GPS_Serial, self ).__init__()
-
-        self.__ser = serial.Serial( port, baud, timeout=timeout )
-        self.__ser.flush()
-
-        self.__lock = Lock()
-
-        self.__quit = False
 
         # GGA Global positioning system fixed data
         self.__gga = [] # contains compiled regex
@@ -156,6 +148,18 @@ class Grove_GPS_Serial( Thread ):
         self.__velocity = 0.0
 
         self.__date = 0
+
+        # start serial device
+        self.__lock = Lock()
+
+        self.__ser = Serial_Device( port, baud, timeout )
+        self.__ser.on_process_command = self.__process_command
+        self.__ser.start()
+
+    # ---------------------------------------------------------------------------------------------
+    def __del__( self ):
+        """! Finalize Class """
+        self.__ser.stop()
 
     # ---------------------------------------------------------------------------------------------
     def __debug( self, s ):
@@ -247,135 +251,98 @@ class Grove_GPS_Serial( Thread ):
         self.__satellites = len( self.__satellitesUsedInfo )
 
     # ---------------------------------------------------------------------------------------------
-    def stop( self ):
-        """! Stop thread and wait for completion """
+    def __process_command( self, line ):
+        """! Process command
+        @param line  command to process
+        """
+        if ( not len( line ) ):
+            return
+
         self.__lock.acquire()
-        self.__quit = True
+        self.__debug( line )
+
+        # gga
+        if ( self.__validate_expression( self.GPGGA[0], line, self.__gga ) ):
+            lines = self.__split( self.GPGGA[0], line )
+
+            self.__timestamp = float( lines[1] )
+
+            lat = float( lines[2] )
+            NS = lines[3]
+
+            self.__latitude = lat // 100 + lat % 100 / 60
+            if ( NS == "S" ):
+                self.__latitude *= -1.0
+
+            lon = float( lines[4] )
+            EW = lines[5]
+
+            self.__longitude = lon // 100 + lon % 100 / 60
+            if ( EW == "W" ):
+                self.__longitude = -self.__longitude
+
+            self.__pos = int( lines[6] )
+            self.__satellites = int( lines[7] )
+            self.__hdop = float( lines[8] )
+            self.__altitude = float( lines[9] )
+            self.__geoids = float( lines[11] )
+
+        # gsa
+        elif ( self.__validate_expression( self.GPGSA[0], line, self.__gsa ) ):
+            lines = self.__split( self.GPGSA[0], line )
+
+            if ( '1' == lines[2] ):
+                self.__debug( "Fix not available" )
+
+            else:
+                self.__satellitesUsed = []
+
+                for s in lines[3:15]:
+                    if ( len(s ) ):
+                        self.__satellitesUsed.append( int( s ) )
+
+                self.__pdop = float( lines[15] )
+                self.__hdop = float( lines[16] )
+                self.__vdop = float( lines[17] )
+
+        # gsv
+        elif ( self.__validate_expression( self.GPGSV[0], line, self.__gsv ) ):
+            lines = self.__split( self.GPGSV[0], line )
+
+            num_gsv = int( lines[1] )
+            gsv_index = int( lines[2] ) - 1
+
+            # save off all lines
+            # process them all once we have all of them
+            if ( 0 == gsv_index ):
+                self.__gsv_lines = []
+
+            self.__gsv_lines.append( line )
+
+            # we have all lines
+            if ( num_gsv == len( self.__gsv_lines ) ):
+                self.__process_gsv()
+
+        # rmc
+        elif ( self.__validate_expression( self.GPRMC[0], line, self.__rmc ) ):
+            lines = self.__split( self.GPRMC[0], line )
+
+            if ( 'A' != lines[2] ):
+                self.__debug( "RMC data not valid" )
+
+            else:
+                self.__velocity = float( lines[7] ) * self.KNOTS_TO_KM_HR
+                self.__heading = float( lines[8] )
+                self.__date = float( lines[9] )
+
+        # vtg
+        elif ( self.__validate_expression( self.GPVTG[0], line, self.__vtg ) ):
+            lines = self.__split( self.GPVTG[0], line )
+
+            self.__heading = float( lines[1] )
+            self.__velocity = float( lines[5] ) * self.KNOTS_TO_KM_HR
+
         self.__lock.release()
-
-        self.join()
-
-    # ---------------------------------------------------------------------------------------------
-    def run( self ):
-        """! Thread run method """
-        
-        buffer = []
-
-        while ( True ):
-            self.__lock.acquire()
-
-            try:
-                
-                # check to exit thread
-                if ( self.__quit ):
-                    self.__quit = False
-                    break
-
-                # read serial port
-                pending = self.__ser.inWaiting()
-
-                if ( 0 != pending ):
-                    for c in self.__ser.read( pending ):
-                        ch = c.decode( 'utf-8' )
-
-                        if ( ch != '\n' ):
-                            buffer.append( ch )
-
-                        # process buffer when we see line feed
-                        else:
-                            line = ''.join( str(v) for v in buffer )
-                            line.strip()
-
-                            buffer = []
-
-                            if ( len( line ) ):
-                                self.__debug( line )
-
-                                # gga
-                                if ( self.__validate_expression( self.GPGGA[0], line, self.__gga ) ):
-                                    lines = self.__split( self.GPGGA[0], line )
-
-                                    self.__timestamp = float( lines[1] )
-
-                                    lat = float( lines[2] )
-                                    NS = lines[3]
-
-                                    self.__latitude = lat // 100 + lat % 100 / 60
-                                    if ( NS == "S" ):
-                                        self.__latitude *= -1.0
-
-                                    lon = float( lines[4] )
-                                    EW = lines[5]
-
-                                    self.__longitude = lon // 100 + lon % 100 / 60
-                                    if ( EW == "W" ):
-                                        self.__longitude = -self.__longitude
-
-                                    self.__pos = int( lines[6] )
-                                    self.__satellites = int( lines[7] )
-                                    self.__hdop = float( lines[8] )
-                                    self.__altitude = float( lines[9] )
-                                    self.__geoids = float( lines[11] )
-
-                                # gsa
-                                elif ( self.__validate_expression( self.GPGSA[0], line, self.__gsa ) ):
-                                    lines = self.__split( self.GPGSA[0], line )
-
-                                    if ( '1' == lines[2] ):
-                                        self.__debug( "Fix not available" )
-
-                                    else:
-                                        self.__satellitesUsed = []
-
-                                        for s in lines[3:15]:
-                                            if ( len(s ) ):
-                                                self.__satellitesUsed.append( int( s ) )
-
-                                        self.__pdop = float( lines[15] )
-                                        self.__hdop = float( lines[16] )
-                                        self.__vdop = float( lines[17] )
-
-                                # gsv
-                                elif ( self.__validate_expression( self.GPGSV[0], line, self.__gsv ) ):
-                                    lines = self.__split( self.GPGSV[0], line )
-
-                                    num_gsv = int( lines[1] )
-                                    gsv_index = int( lines[2] ) - 1
-
-                                    # save off all lines
-                                    # process them all once we have all of them
-                                    if ( 0 == gsv_index ):
-                                        self.__gsv_lines = []
-
-                                    self.__gsv_lines.append( line )
-
-                                    # we have all lines
-                                    if ( num_gsv == len( self.__gsv_lines ) ):
-                                        self.__process_gsv()
-
-                                # rmc
-                                elif ( self.__validate_expression( self.GPRMC[0], line, self.__rmc ) ):
-                                    lines = self.__split( self.GPRMC[0], line )
-
-                                    if ( 'A' != lines[2] ):
-                                        self.__debug( "RMC data not valid" )
-
-                                    else:
-                                        self.__velocity = float( lines[7] ) * self.KNOTS_TO_KM_HR
-                                        self.__heading = float( lines[8] )
-                                        self.__date = float( lines[9] )
-
-                                # vtg
-                                elif ( self.__validate_expression( self.GPVTG[0], line, self.__vtg ) ):
-                                    lines = self.__split( self.GPVTG[0], line )
-
-                                    self.__heading = float( lines[1] )
-                                    self.__velocity = float( lines[5] ) * self.KNOTS_TO_KM_HR
-
-            finally:
-                self.__lock.release()
-
-            time.sleep( self.POLL_TIME )
 
     # ---------------------------------------------------------------------------------------------
     def utc( self ):
@@ -525,112 +492,44 @@ class Grove_GPS_Serial( Thread ):
 
         return result
 
-# =================================================================================================
-class Grove_GPS( object ):
-    """! Seeed Studio Grove-GPS Module (SIM28) """
+# -------------------------------------------------------------------------------------------------
+def main():
+    gps = Grove_GPS()
 
-    # ---------------------------------------------------------------------------------------------
-    def __init__( self, port = '/dev/ttyAMA0', baud = 9600, timeout = 0 ):
-        """! Initialize Class
-        @param port  serial device
-        @param baud  baud rate
-        @param timeout  timeout
-        """
-        self.__ser = Grove_GPS_Serial( port, baud, timeout )
-        self.__ser.start()
- 
-    # ---------------------------------------------------------------------------------------------
-    def __del__( self ):
-        """! Finalize Class """
-        self.__ser.stop()
+    try:
 
-    # ---------------------------------------------------------------------------------------------
-    def utc( self ):
-        """! Retrieve UTC Time
-        @return  utc time (hhmmss)
-        """
-        return self.__ser.utc()
+        while ( True ):
 
-    # ---------------------------------------------------------------------------------------------
-    def date( self ):
-        """! Retrieve UTC Date
-        @return  date (ddmmyy)
-        """
-        return self.__ser.date()
+            # wait for link
+            if ( not gps.link() ):
+                print( "No link..." )
 
-    # ---------------------------------------------------------------------------------------------
-    def location( self ):
-        """! Retrieve current location
-        @return  location as (latitude, longitude)
-        """
-        return self.__ser.location()
+            else:
+                print( 'Link' )
+                print( 'UTC', gps.utc() )
+                print( 'Date', gps.date() )
+                
+                (lat, lon) = gps.location()
+                print( 'Latitude %.6f' % lat )
+                print( 'Longitude %.6f' % lon )
+                print( 'Altitude', gps.altitude() )
 
-    # ---------------------------------------------------------------------------------------------
-    def link( self ):
-        """! Check for satellite link
-        @return  @c True if link exists, @c False otherwise
-        """
-        return self.__ser.link()
+                print( 'PDOP', gps.pdop() )
+                print( 'HDOP', gps.hdop() )
+                print( 'VDOP', gps.vdop() )
 
-    # ---------------------------------------------------------------------------------------------
-    def altitude( self ):
-        """! Retrieve current altitude
-        @return  altitude (meters)
-        """
-        return self.__ser.altitude()
+                print( 'Satellites in view', gps.satellitesInView() )
+                print( 'Satellites used', gps.satellitesUsed() )
+                print( 'Satellites information', gps.satellitesUsedInfo() )
 
-    # ---------------------------------------------------------------------------------------------
-    def pdop( self ):
-        """! Retrieve position dilution of precision
-        @return  pdop
-        """
-        return self.__ser.pdop()
+                print( 'Velocity', gps.velocity() )
+                print( 'True Heading', gps.heading() )
 
-    # ---------------------------------------------------------------------------------------------
-    def hdop( self ):
-        """! Retrieve horizontal dilution of precision
-        @return  hdop
-        """
-        return self.__ser.hdop()
+            time.sleep( 1.0 )
 
-    # ---------------------------------------------------------------------------------------------
-    def vdop( self ):
-        """! Retrieve vertical dilution of precision
-        @return  vdop
-        """
-        return self.__ser.vdop()
+    finally:
+        del gps
 
-    # ---------------------------------------------------------------------------------------------
-    def satellitesInView( self ):
-        """! Retrieve number of satellites in view
-        @return  number of satellites in view
-        """
-        return self.__ser.satellitesInView()
-
-    # ---------------------------------------------------------------------------------------------
-    def satellitesUsed( self ):
-        """! Retrieve satellites used
-        @return  satellites used
-        """
-        return self.__ser.satellitesUsed()
-
-    # ---------------------------------------------------------------------------------------------
-    def satellitesUsedInfo( self ):
-        """! Retrieve satellites used information
-        @return  dictionary of (elevation, azinmuth, snr) by satellites used id
-        """
-        return self.__ser.satellitesUsedInfo()
-
-    # ---------------------------------------------------------------------------------------------
-    def heading( self ):
-        """! Retrieve true heading
-        @return  heading (degrees)
-        """
-        return self.__ser.heading()
-
-    # ---------------------------------------------------------------------------------------------
-    def velocity( self ):
-        """! Retrieve current velocity
-        @return  velocity (km/hr)
-        """
-        return self.__ser.velocity()
+# -------------------------------------------------------------------------------------------------
+if __name__ =="__main__":
+    main()
